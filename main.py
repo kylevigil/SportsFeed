@@ -74,16 +74,28 @@ def get_news():
     a = Articles(API_KEY=news_api_key)
     
     source_ids = ['espn', 'espn-cric-info', 'fox-sports', 'nfl-news']
-    
+#    
+#    news = []
+#    for source in source_ids:
+#        articles = a.get(source)["articles"]
+#        text = [(article["title"], article["description"]) for article in articles]
+#        if text[1] is None:
+#        	text[1] = ''
+#        news += text
+        
     news = []
     for source in source_ids:
         articles = a.get(source)["articles"]
-        text = [(article["title"], article["description"]) for article in articles]
-        news += text
+        text = []
+        for article in articles:
+            if not (article["title"] is None or article["description"] is None or len(article["title"]) == 0):
+                text.append((article["title"], article["description"]))
+        if len(text) > 0:
+            news += text
         
-    articles = a.get("breitbart-news")["articles"]
-    text = [("Politics: " + article["title"], article["description"]) for article in articles]
-    news += text
+#    articles = a.get("breitbart-news")["articles"]
+#    text = [("Politics: " + article["title"], article["description"]) if article["description"] is not None else ("Politics: " + article["title"], "") for article in articles]
+#    news += text
     
     return news
     
@@ -91,10 +103,19 @@ def process_articles(news):
     articles = []
     for article in news:
         article_profile = np.zeros(len(sports))
+        
         for i, sport in enumerate(sports):
-            words = set("".join(c for c in article[0].lower() + " " + article[1] if c.isalnum() or c.isspace()).split())
-            if sport.lower() in words:
-                article_profile[i] += 1
+            try:
+                words = set("".join(c for c in article[0].lower() + " " + article[1] if c.isalnum() or c.isspace()).split())
+                if sport.lower() in words:
+                    article_profile[i] += 1
+            except:
+                l.info('skipped')
+                if article[0] is None:
+                	l.info('article 0 is none')
+                if article[1] is None:
+                	l.info('article 1 is none')
+#                l.info(article[0] + "||||" + article[1])
 
         articles.append(article_profile)
 
@@ -136,6 +157,16 @@ def hello():
 @app.route('/webhook', methods=['POST'])
 def apiai_response():
     req = request.get_json(silent=True, force=True)
+    l.info("this is the json!!!!!!! \n" + str(req))
+    
+    try:
+        id = req.get("originalRequest").get("data").get("user").get("userId")
+    except:
+#        l.info(str(req.get("originalRequest")))
+#        l.info(str(req.get("originalRequest").get("data")))
+#        l.info(str(req.get("originalRequest").get("data").get("conversation")))
+#        l.info(str(req.get("originalRequest").get("data").get("conversation").get("user")))
+        id = "guest"
     
     l.info("action: " + req.get("result").get("action"))
 
@@ -146,7 +177,7 @@ def apiai_response():
 #        i = random.randint(0, len(news)-1)
 #        speech = news[i][0] + ". " + news[i][1]
         
-        (all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/testfile.temp")
+        (all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/" + id + ".txt")
         user_profile = np.fromstring(file_text, sep=',')
 
         ordered_news = get_similar_news(article_profiles, news, user_profile)
@@ -161,41 +192,41 @@ def apiai_response():
         if i < len(ordered_news):
             speech = ordered_news[i] + "\n\nDo you like this article?"
             all_articles.append(ordered_news[i])
-            create_file("/sportsfeed-21790.appspot.com/testfile.temp", all_articles, ordered_news[i], user_profile)
+            create_file("/sportsfeed-21790.appspot.com/" + id + ".txt", all_articles, ordered_news[i], user_profile)
         else:
             speech = "Sorry, no more news left."
 
     elif req.get("result").get("action") == "likesArticle":
         l.info("in likes article")
-    	(all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/testfile.temp")
+    	(all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/" + id + ".txt")
     	article_profile = process_one(last_article)
     	user_profile = np.fromstring(file_text, sep=',')
     	
     	user_profile += article_profile
     	
-    	create_file("/sportsfeed-21790.appspot.com/testfile.temp", all_articles, last_article, user_profile)
+    	create_file("/sportsfeed-21790.appspot.com/" + id + ".txt", all_articles, last_article, user_profile)
     	
     elif req.get("result").get("action") == "dislikesArticle":
         speech = "Sorry about that. Updated profile."
         l.info("in dislikes article")
-    	(all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/testfile.temp")
+    	(all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/" + id + ".txt")
     	article_profile = process_one(last_article)
     	user_profile = np.fromstring(file_text, sep=',')
     	
     	user_profile -= article_profile
     	
-    	create_file("/sportsfeed-21790.appspot.com/testfile.temp", all_articles, last_article, user_profile)    	
+    	create_file("/sportsfeed-21790.appspot.com/" + id + ".txt", all_articles, last_article, user_profile)    	
     	
     elif req.get("result").get("action") == "reset":
         l.info("in reset")
         speech = "Resetting user profile..."
         
         user_profile = np.zeros(len(sports))
-        create_file("/sportsfeed-21790.appspot.com/testfile.temp", "", "", user_profile) 
+        create_file("/sportsfeed-21790.appspot.com/" + id + ".txt", "", "", user_profile) 
     
     elif req.get("result").get("action") == "getProfile":
         l.info("in describe")
-        (all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/testfile.temp")
+        (all_articles, last_article, file_text) = read_file("/sportsfeed-21790.appspot.com/" + id + ".txt")
         user_profile = np.fromstring(file_text, sep=',')
         
         (likes, dislikes) = describe_profile(user_profile)
