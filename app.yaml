@@ -11,3 +11,7 @@ libraries:
   version: "2.6"
 - name: markupsafe
   version: "0.15"
+- name: ssl
+  version: "2.7.11"
+- name: numpy
+  version: "1.6.1"
