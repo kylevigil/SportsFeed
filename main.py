@@ -14,11 +14,16 @@ import numpy as np
 import os
 import cloudstorage as gcs
 import webapp2
+import random
 
 app = Flask(__name__)
 
 news_api_key = "663733985a214ef5aa4ee7372ab3e223"
 bucket_name = "/sportsfeed-21790.appspot.com/{}.pro"
+
+positive = ["Sweet!", "Nice!", "Cool!", "Thanks!", "Good to hear!"]
+negative = ["Sorry about that.", "Whoops, our bad.", "Yikes.", "Oh well, we'll try again next time.", "Sorry."]
+update = ["Your profile is updated.", "Updated profile.", "Your preferences are recorded.", "Made changes to profile."]
 
 sports = np.array(['sports', 'warriors', 'minnisota fc', 'kings', 'orlando city', 'maple leafs', 'knicks', 'argonauts',
             'brewers', 'dodgers', 'grizzlies', 'toronto fc', '76ers', 'columbus crew', 'bulls', 'redskins', 'eskimos', 'magic',
@@ -196,7 +201,7 @@ def news_response(user_id):
             
         create_file(bucket_name.format(user_id), all_articles, ordered_news[i], user_profile)
 
-        return ordered_news[i][0] + "\nDo you like this article?"
+        return ordered_news[i][0] + ".\nWant to hear more about this article?"
 
     return "Sorry, no more news left."
 
@@ -216,9 +221,12 @@ def likes_article(user_id):
     user_profile[genre_id] += article_profile[0]
     create_file(bucket_name.format(user_id), all_articles, (last_article, "", genre), user_profile)
     
-    details = last_article.split("||")[-1]
+    details = last_article.split("||")
     
-    return "Nice! Updated results.\nMore details about the article: " + details
+    if len(details) > 1:
+        return random.choice(positive) + " " + random.choice(update) + "\nMore details about the article: " + details[-1]
+    else:
+        return random.choice(positive) + " " + random.choice(update) + "\nSorry there are no more details about the article."
 
 def dislikes_article(user_id):
     l.info("in dislikes article")
@@ -236,7 +244,7 @@ def dislikes_article(user_id):
     user_profile[genre_id] -= article_profile[0]
     create_file(bucket_name.format(user_id), all_articles, (last_article, "", genre), user_profile)
     
-    return "Sorry about that. Updated profile."
+    return random.choice(negative) + " " + random.choice(update)
 
 def reset(user_id):
     l.info("in reset")
